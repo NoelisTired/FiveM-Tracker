@@ -1,4 +1,4 @@
-# Project Title
+# FiveM Tracker by NoelP (灰分 Ash)
 
 This project is a Python application that allows you to look up players in a game without requiring admin permissions. It uses an in-game ID plugin to scan player IDs, submits them to Google OCR with an exploited API key, or manually browses all players by analyzing the server's endpoints.
 
