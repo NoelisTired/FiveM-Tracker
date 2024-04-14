@@ -1,107 +1,55 @@
-import psutil, requests, time, threading, re
+from lib.hook import FiveM
+from lib.ocr import ScreenTextDetector
+from lib.process import Data
+import time
+import os
+import signal
+import keyboard, threading, ctypes
+
+
 class Main:
-    def __init__(self) -> None:
-        self.lastUpdated = "05-02-2023"
-        print("FiveM Player Scraper by @NoelP#3105 (NoelisTired)")
-        print("Last updated: %s" % self.lastUpdated)
-        self.get = Func()
-        self.thread = self.thread()
-        self.pid = None
-    def scrapeServer(self):
-        while True:
-            for proc in psutil.process_iter():
-                if "GTAProcess.exe" in proc.name():
-                    self.pid = proc.pid
-                    return
+    def __init__(self):
+        self.__author = "NoelP"
+        self.__version = "2.0.0"
+        self.fivem = FiveM()
+        keyboard.add_hotkey("ctrl+shift+q", self.kill)
+
+    """
+        This function is responsible for killing the process. 
+        It is called when the user presses "ctrl+shift+q" on the keyboard, pressing the X sometimes doesn't terminate the OCR thread
+    """
+    def kill(self):
+        print("Bye.")
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    """
+        This function is responsible for checking for updates, it is not working as of now.
+    """
+    def check_for_updates(self):
+        try:
+            if "1.0.0" != self.__version:
+                return True
+            else:
+                return False
+        except:
+            return False
+
+    def start(self):
+        time.sleep(1)
+        print("Checking for updates...")
+        time.sleep(1)
+        if self.check_for_updates():
+            print("Update Required..")
+            os.system('start https://google.com/')
             time.sleep(3)
-    def thread(self) -> None:
-        print("Waiting for FiveM..")
-        self.scrapeServer()
-        while not self.get.ip:
-            for connection in psutil.net_connections():
-                if connection.pid == self.pid and connection.status == "ESTABLISHED" and connection.raddr[1] not in [80, 443] and connection.raddr[0] not in ["127.0.0.1", "localhost"]:
-                    self.get.ip = connection.raddr[0]
-                    self.get.port = connection.raddr[1]
-                    print("Found FiveM! IP: %s, Port: %s" % (self.get.ip, self.get.port))
-                    break
-            time.sleep(1)
-    @staticmethod
-    def clear() -> None:
-        print("\033c", end="")
-        
-    def mainMenu(self) -> None:
-        self.clear()
-        print("1. Get server info")
-        print("2. Get ALL players")
-        print("3. Get player info")
-        print("4. Exit")
-        opt = input("Select an option: ")
-        self.clear()
-        if opt == "1":
-            print("Server info:")
-            print("Steam required:",self.get.steamRequired)
-            print("Resources:",len(self.get.resources))
-            print("Discord:",self.get.discord)
-            print("Language:",self.get.lang)
-            input("Press enter to continue..")
-        elif opt == "2":
-            print("Players: %s" % len(self.get.players))
-            [print(f"[{player[0]+1}]","FiveM ID:",player[1]['id'],"|","Name:",player[1]['name']) for player in enumerate(self.get.players)]
-            input("Press enter to continue..")
-        elif opt == "3":
-            print("Players: %s" % len(self.get.players))
-            opt = input("Select a player by ID: ")
-            if not opt.isdigit():
-                print("Invalid option!")
-                time.sleep(1)
-                return self.mainMenu()
-            elif int(opt) > len(self.get.players):
-                print("Invalid option!")
-                time.sleep(1)
-                return self.mainMenu()
-            player = self.get.players[int(opt)-1]
-            print("FiveM ID:",player['id'],"|","Name:",player['name'])
-            print("Identifiers:")
-            x = re.findall(r"(\w+):(\w+)", str(player['identifiers']))
-            [print(x[0].capitalize(), x[1]) for x in x]
-            print("Ping:",player['ping'],"ms")
-            input("Press enter to continue..")
-        elif opt == "4":
-            exit()
-        else:
-            print("Invalid option!")
-        self.mainMenu()
-    def start(self) -> None:
-        print("Starting..")
-        thread = threading.Thread(target=self.get.Players)
-        thread.daemon = True
-        thread.start()
-        self.mainMenu()
-        
-class Func:
-    def __init__(self) -> None:
-        self.players = None
-        self.ip = None
-        self.port = None
-        self.steamRequired = None
-        self.resources = None
-        self.discord = None
-        self.lang = None
-    def Players(self) -> None:
-        self.getServerInfo()
-        while True:
-            r = requests.get(f"http://{self.ip}:{self.port}/players.json")
-            if r.status_code == 200:
-                self.players = sorted(r.json(), key=lambda x: x["id"])
-            time.sleep(5)
-    def getServerInfo(self) -> None:
-        r = requests.get(f"http://{self.ip}:{self.port}/info.json")
-        if r.status_code != 200:
-            return "No connection could be made because the target machine actively refused it."
-        self.steamRequired = r.json()["requestSteamTicket"]
-        self.resources = r.json()["resources"]
-        self.discord = r.json()['vars']["discord"] if r.json()['vars']["discord"] != "" else "No discord link provided."
-        self.lang = r.json()['vars']["locale"]
+            self.kill()
+        return self.fivem.receive()
+
+
 if __name__ == "__main__":
-    print("\033c", end="")
-    Main().start()
+    ctypes.windll.kernel32.SetConsoleTitleW("灰分 | Ash - FiveM Tools")
+    main = Main()
+    credentials = main.start()
+    if type(credentials) == tuple:
+        dataobj = Data(credentials[0], credentials[1])
+        dataobj.menu()
